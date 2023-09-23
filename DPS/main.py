@@ -19,7 +19,7 @@ consumer_task = None
 consumer = None
 
 # env variables
-KAFKA_TOPIC = os.getenv('KAFKA_TOPIC', 'topic')
+KAFKA_TOPIC = os.getenv('TOPIC')
 KAFKA_CONSUMER_GROUP_PREFIX = os.getenv('KAFKA_CONSUMER_GROUP_PREFIX', 'group')
 KAFKA_BOOTSTRAP_SERVERS = os.getenv('KAFKA_BOOTSTRAP_SERVERS', 'localhost:9092')
 

@@ -42,7 +42,8 @@ app.use(function(err, req, res, next) {
 
 module.exports = app;
 
-const topic = 'topic';
+// get topic from env variable
+const topic = process.env.TOPIC;
 
 produceMessage(topic)
     .then(() => console.log('Message produced successfully'))

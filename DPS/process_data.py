@@ -2,7 +2,6 @@ import logging
 
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import split, explode
-from pyspark.sql.types import StringType
 
 spark = SparkSession.builder.appName("WordCount").getOrCreate()
 logger = logging.Logger(__name__)
@@ -29,6 +28,6 @@ async def process_message(msg: str):
         logger.info(f"The most common word is '{most_common_word}' and the number of words is {total_words}.")
 
     except Exception as e:
-        logger.error(f"Exception: {e}")
+        logger.error(f"Exception: {e} at message {msg}")
 
 
