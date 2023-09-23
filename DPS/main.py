@@ -1,15 +1,15 @@
+import asyncio
+import logging
+import os
+import aiokafka
+import uvicorn
+
 from random import randint
-from typing import Set, Any
+from typing import Set
 from fastapi import FastAPI
 from kafka import TopicPartition
 
-import uvicorn
-import aiokafka
-import asyncio
-import json
-import logging
-import os
-
+from process_data import process_message, spark
 
 # instantiate the API
 app = FastAPI()
@@ -17,10 +17,9 @@ app = FastAPI()
 # global variables
 consumer_task = None
 consumer = None
-_state = 0
 
 # env variables
-KAFKA_TOPIC = os.getenv('KAFKA_TOPIC')
+KAFKA_TOPIC = os.getenv('KAFKA_TOPIC', 'topic')
 KAFKA_CONSUMER_GROUP_PREFIX = os.getenv('KAFKA_CONSUMER_GROUP_PREFIX', 'group')
 KAFKA_BOOTSTRAP_SERVERS = os.getenv('KAFKA_BOOTSTRAP_SERVERS', 'localhost:9092')
 
@@ -40,6 +39,7 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_event():
     log.info('Shutting down API')
+    spark.stop()
     consumer_task.cancel()
     await consumer.stop()
 
@@ -63,9 +63,11 @@ async def initialize():
 
     partitions: Set[TopicPartition] = consumer.assignment()
     nr_partitions = len(partitions)
+
     if nr_partitions != 1:
         log.warning(f'Found {nr_partitions} partitions for topic {KAFKA_TOPIC}. Expecting '
                     f'only one, remaining partitions will be ignored!')
+
     for tp in partitions:
 
         # get the log_end_offset
@@ -91,17 +93,24 @@ async def consume():
 
 
 async def send_consumer_message():
-    try:
-        # consume messages
-        async for msg in consumer:
-            # x = json.loads(msg.value)
-            log.info(f"Consumed msg: {msg}")
-            # await websocket.send_text(msg.value)
+    while True:
+        try:
+            # consume messages
+            async for msg in consumer:
+                # x = json.loads(msg.value)
+                log.info(f"Consumed msg: {msg}")
+                # await websocket.send_text(msg.value)
+                await process_message(msg)
+        except asyncio.CancelledError:
+            log.warning('Consumer task was cancelled')
 
-    finally:
-        # will leave consumer group; perform autocommit if enabled
-        log.warning('Stopping consumer')
-        await consumer.stop()
+        except Exception as e:
+            log.error(f'Consumer task failed with exception: {e}')
+
+        finally:
+            # will leave consumer group; perform autocommit if enabled
+            log.warning('Stopping consumer')
+            await consumer.stop()
 
 
 if __name__ == "__main__":
